@@ -1,0 +1,35 @@
+src/
+├── assets/
+│   ├── logo/
+│   └── images/
+│
+├── components/
+│   ├── dashboard/
+│   ├── layout/
+│   ├── charts/
+│   ├── portfolio/
+│   ├── trading/
+│   ├── bots/
+│   ├── exchange/
+│   ├── ui/
+│   └── common/
+│
+├── pages/
+│   ├── Dashboard/
+│   ├── Trading/
+│   ├── Portfolio/
+│   ├── Bots/
+│   ├── Exchanges/
+│   ├── Billing/
+│   ├── AI/
+│   ├── Settings/
+│   ├── Admin/
+│   └── Auth/
+│
+├── hooks/
+├── services/
+├── store/
+├── utils/
+├── layouts/
+├── types/
+└── styles/

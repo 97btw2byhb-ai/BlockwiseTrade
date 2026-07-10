@@ -1,0 +1,1221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blockwise Trading Bot Office - 3D Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@r128/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1a3e 100%);
+            overflow: hidden;
+            color: #00ff88;
+        }
+
+        #canvas {
+            display: block;
+            width: 100%;
+            height: 100vh;
+        }
+
+        /* Loading Screen */
+        #loadingScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #000 0%, #1a1a3e 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            flex-direction: column;
+        }
+
+        .loading-logo {
+            font-size: 4rem;
+            margin-bottom: 2rem;
+            animation: pulse 1.5s infinite;
+        }
+
+        .loading-text {
+            font-size: 2.5rem;
+            margin-bottom: 2rem;
+            background: linear-gradient(45deg, #00ff88, #00ccff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: glow 2s infinite;
+        }
+
+        .loading-bar {
+            width: 300px;
+            height: 8px;
+            background: rgba(0, 255, 136, 0.2);
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid #00ff88;
+        }
+
+        .loading-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff88, #00ccff);
+            width: 0%;
+            animation: loading 3s ease-in-out forwards;
+        }
+
+        .loading-subtext {
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            color: #00ccff;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        @keyframes glow {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        @keyframes loading {
+            0% { width: 0%; }
+            100% { width: 100%; }
+        }
+
+        @keyframes blink {
+            0%, 49%, 100% { opacity: 1; }
+            50%, 99% { opacity: 0; }
+        }
+
+        /* Main Dashboard */
+        #dashboard {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            z-index: 1000;
+            pointer-events: none;
+        }
+
+        /* Top Bar */
+        #topBar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 60px;
+            background: linear-gradient(90deg, rgba(10, 14, 39, 0.9), rgba(26, 26, 62, 0.9));
+            border-bottom: 2px solid #00ff88;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            pointer-events: auto;
+            z-index: 100;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            background: linear-gradient(45deg, #00ff88, #00ccff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .wallet-section {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .wallet-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 15px;
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid #00ff88;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            pointer-events: auto;
+        }
+
+        .wallet-info:hover {
+            background: rgba(0, 255, 136, 0.2);
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.3);
+        }
+
+        .wallet-icon {
+            font-size: 1.2rem;
+        }
+
+        .balance-display {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .balance-item {
+            text-align: center;
+            padding: 8px 15px;
+            background: rgba(0, 204, 255, 0.1);
+            border: 1px solid #00ccff;
+            border-radius: 8px;
+        }
+
+        .balance-label {
+            font-size: 0.8rem;
+            color: #00ccff;
+            opacity: 0.8;
+        }
+
+        .balance-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #00ff88;
+        }
+
+        /* Windows Container */
+        #windowsContainer {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            max-width: 500px;
+            pointer-events: auto;
+        }
+
+        .window {
+            background: linear-gradient(135deg, rgba(10, 14, 39, 0.95), rgba(26, 26, 62, 0.95));
+            border: 2px solid #00ff88;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+            overflow: hidden;
+            transition: all 0.3s;
+            max-height: 400px;
+            animation: slideIn 0.5s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(500px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .window.minimized {
+            max-height: 40px;
+        }
+
+        .window-header {
+            background: linear-gradient(90deg, #00ff88, #00ccff);
+            padding: 10px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: move;
+            user-select: none;
+            pointer-events: auto;
+        }
+
+        .window-title {
+            color: #000;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .window-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .window-btn {
+            background: rgba(0, 0, 0, 0.3);
+            border: none;
+            color: #000;
+            cursor: pointer;
+            font-size: 0.8rem;
+            padding: 2px 8px;
+            border-radius: 3px;
+            transition: all 0.2s;
+        }
+
+        .window-btn:hover {
+            background: rgba(0, 0, 0, 0.6);
+        }
+
+        .window-content {
+            padding: 15px;
+            max-height: 360px;
+            overflow-y: auto;
+            color: #00ff88;
+            font-size: 0.85rem;
+        }
+
+        .window.minimized .window-content {
+            display: none;
+        }
+
+        /* Bot Profiles */
+        .bot-profile {
+            background: rgba(0, 204, 255, 0.1);
+            border: 1px solid #00ccff;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .bot-profile:hover {
+            background: rgba(0, 204, 255, 0.2);
+            box-shadow: 0 0 15px rgba(0, 204, 255, 0.3);
+            transform: translateX(-5px);
+        }
+
+        .bot-name {
+            font-size: 1rem;
+            font-weight: bold;
+            color: #00ff88;
+            margin-bottom: 5px;
+        }
+
+        .bot-role {
+            font-size: 0.8rem;
+            color: #00ccff;
+            margin-bottom: 8px;
+        }
+
+        .bot-status {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.75rem;
+        }
+
+        .bot-stat {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+        }
+
+        .bot-stat-item {
+            flex: 1;
+        }
+
+        .stat-label {
+            color: #00ccff;
+            opacity: 0.8;
+            font-size: 0.7rem;
+        }
+
+        .stat-value {
+            color: #00ff88;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: #00ff88;
+            border-radius: 50%;
+            animation: pulse-dot 2s infinite;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Data Feed Windows */
+        .feed-item {
+            background: rgba(0, 255, 136, 0.05);
+            border-left: 2px solid #00ff88;
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            border-radius: 3px;
+        }
+
+        .feed-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+            font-size: 0.8rem;
+        }
+
+        .feed-symbol {
+            color: #00ccff;
+            font-weight: bold;
+        }
+
+        .feed-price {
+            color: #00ff88;
+        }
+
+        .feed-change {
+            font-weight: bold;
+        }
+
+        .feed-change.positive {
+            color: #00ff88;
+        }
+
+        .feed-change.negative {
+            color: #ff4444;
+        }
+
+        .feed-chart {
+            height: 30px;
+            margin-top: 4px;
+            background: rgba(0, 255, 136, 0.1);
+            border-radius: 3px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Scrollbar */
+        .window-content::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .window-content::-webkit-scrollbar-track {
+            background: rgba(0, 255, 136, 0.1);
+        }
+
+        .window-content::-webkit-scrollbar-thumb {
+            background: rgba(0, 255, 136, 0.5);
+            border-radius: 3px;
+        }
+
+        .window-content::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 255, 136, 0.8);
+        }
+
+        /* Modal */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            pointer-events: auto;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, rgba(10, 14, 39, 0.98), rgba(26, 26, 62, 0.98));
+            border: 2px solid #00ff88;
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 0 30px rgba(0, 255, 136, 0.5);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #00ccff;
+            padding-bottom: 15px;
+        }
+
+        .modal-title {
+            font-size: 1.8rem;
+            background: linear-gradient(45deg, #00ff88, #00ccff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: #00ff88;
+            font-size: 2rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .close-btn:hover {
+            color: #ff4444;
+            transform: rotate(90deg);
+        }
+
+        .modal-body {
+            color: #00ff88;
+        }
+
+        .bot-detail-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(0, 204, 255, 0.1);
+            border: 1px solid #00ccff;
+            border-radius: 8px;
+        }
+
+        .section-title {
+            font-size: 1.1rem;
+            color: #00ccff;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(0, 255, 136, 0.1);
+            font-size: 0.9rem;
+        }
+
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+
+        .detail-label {
+            color: #00ccff;
+        }
+
+        .detail-value {
+            color: #00ff88;
+            font-weight: bold;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            #windowsContainer {
+                max-width: 100%;
+                left: 10px;
+                right: 10px;
+                bottom: 10px;
+            }
+
+            .window {
+                max-width: 100%;
+            }
+
+            #topBar {
+                flex-wrap: wrap;
+                height: auto;
+                gap: 10px;
+                padding: 10px;
+            }
+
+            .balance-display {
+                width: 100%;
+                flex-wrap: wrap;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loadingScreen">
+        <div class="loading-logo">🤖</div>
+        <div class="loading-text">BLOCKWISE TRADING</div>
+        <div class="loading-bar">
+            <div class="loading-bar-fill"></div>
+        </div>
+        <div class="loading-subtext">Initializing Trading Command Center...</div>
+    </div>
+
+    <!-- 3D Canvas -->
+    <canvas id="canvas"></canvas>
+
+    <!-- Dashboard -->
+    <div id="dashboard">
+        <!-- Top Bar -->
+        <div id="topBar">
+            <div class="logo">
+                💼 BLOCKWISE TRADING OFFICE
+            </div>
+            <div class="wallet-section">
+                <div class="balance-display">
+                    <div class="balance-item">
+                        <div class="balance-label">Total Portfolio</div>
+                        <div class="balance-value">$50,234.50</div>
+                    </div>
+                    <div class="balance-item">
+                        <div class="balance-label">24h P&L</div>
+                        <div class="balance-value" style="color: #00ff88;">+$2,145.32</div>
+                    </div>
+                    <div class="balance-item">
+                        <div class="balance-label">Active Trades</div>
+                        <div class="balance-value">12</div>
+                    </div>
+                </div>
+                <div class="wallet-info" onclick="connectWallet('phantom')">
+                    <span class="wallet-icon">👻</span>
+                    <span>Phantom</span>
+                </div>
+                <div class="wallet-info" onclick="connectWallet('coinbase')">
+                    <span class="wallet-icon">🪙</span>
+                    <span>Coinbase</span>
+                </div>
+                <div class="wallet-info" onclick="connectWallet('metamask')">
+                    <span class="wallet-icon">🦊</span>
+                    <span>MetaMask</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Windows Container -->
+        <div id="windowsContainer"></div>
+
+        <!-- Bot Profile Modal -->
+        <div id="botModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div class="modal-title" id="modalBotName">Bot Profile</div>
+                    <button class="close-btn" onclick="closeBotModal()">✕</button>
+                </div>
+                <div class="modal-body" id="modalBotBody"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============== LOADING SCREEN ==============
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                document.getElementById('loadingScreen').style.display = 'none';
+                document.getElementById('dashboard').style.display = 'block';
+                startAnimation();
+            }, 3500);
+        });
+
+        // ============== THREE.JS 3D SCENE ==============
+        let scene, camera, renderer, bots = [];
+
+        function initThreeJS() {
+            // Scene setup
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0e27);
+            scene.fog = new THREE.Fog(0x0a0e27, 100, 1000);
+
+            // Camera setup
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 8, 15);
+
+            // Renderer setup
+            renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('canvas'), antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFShadowShadowMap;
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0x00ff88, 1);
+            directionalLight.position.set(10, 20, 10);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            scene.add(directionalLight);
+
+            const pointLight = new THREE.PointLight(0x00ccff, 0.8);
+            pointLight.position.set(-10, 10, -10);
+            scene.add(pointLight);
+
+            // Create office environment
+            createOffice();
+            createBots();
+
+            // Controls
+            const controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.autoRotate = true;
+            controls.autoRotateSpeed = 2;
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+
+            // Animation loop
+            function animate() {
+                requestAnimationFrame(animate);
+                renderer.render(scene, camera);
+                controls.update();
+
+                // Animate bots
+                bots.forEach(bot => {
+                    bot.group.rotation.y += 0.005;
+                });
+            }
+
+            animate();
+
+            // Handle resize
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        }
+
+        function createOffice() {
+            // Floor
+            const floorGeometry = new THREE.PlaneGeometry(30, 30);
+            const floorMaterial = new THREE.MeshStandardMaterial({
+                color: 0x1a1a3e,
+                roughness: 0.8
+            });
+            const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+            floor.rotation.x = -Math.PI / 2;
+            floor.receiveShadow = true;
+            scene.add(floor);
+
+            // Walls
+            const wallMaterial = new THREE.MeshStandardMaterial({
+                color: 0x0a0e27,
+                roughness: 0.7
+            });
+
+            // Back wall
+            const backWallGeometry = new THREE.PlaneGeometry(30, 15);
+            const backWall = new THREE.Mesh(backWallGeometry, wallMaterial);
+            backWall.position.z = -15;
+            backWall.position.y = 7.5;
+            scene.add(backWall);
+
+            // Left wall
+            const leftWallGeometry = new THREE.PlaneGeometry(30, 15);
+            const leftWall = new THREE.Mesh(leftWallGeometry, wallMaterial);
+            leftWall.rotation.y = Math.PI / 2;
+            leftWall.position.x = -15;
+            leftWall.position.y = 7.5;
+            scene.add(leftWall);
+
+            // Ceiling with grid
+            const ceilingGeometry = new THREE.PlaneGeometry(30, 30);
+            const ceilingMaterial = new THREE.MeshStandardMaterial({
+                color: 0x1a1a3e,
+                roughness: 0.5,
+                emissive: 0x00ff88,
+                emissiveIntensity: 0.2
+            });
+            const ceiling = new THREE.Mesh(ceilingGeometry, ceilingMaterial);
+            ceiling.rotation.x = Math.PI / 2;
+            ceiling.position.y = 15;
+            scene.add(ceiling);
+
+            // Neon grid lines on ceiling
+            const gridGeometry = new THREE.BufferGeometry();
+            const gridVertices = [];
+            for (let i = -15; i <= 15; i += 3) {
+                gridVertices.push(i, 15, -15);
+                gridVertices.push(i, 15, 15);
+                gridVertices.push(-15, 15, i);
+                gridVertices.push(15, 15, i);
+            }
+            gridGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(gridVertices), 3));
+            const gridMaterial = new THREE.LineBasicMaterial({ color: 0x00ff88, linewidth: 2 });
+            const grid = new THREE.LineSegments(gridGeometry, gridMaterial);
+            scene.add(grid);
+        }
+
+        function createBots() {
+            const botData = [
+                {
+                    name: 'ALPHA-7',
+                    role: 'Swing Trader',
+                    position: [-8, 0, -5],
+                    color: 0x00ff88,
+                    winRate: '68%',
+                    totalTrades: 245,
+                    balance: '$12,450'
+                },
+                {
+                    name: 'BETA-5',
+                    role: 'Scalper',
+                    position: [-4, 0, -5],
+                    color: 0x00ccff,
+                    winRate: '72%',
+                    totalTrades: 512,
+                    balance: '$8,320'
+                },
+                {
+                    name: 'GAMMA-3',
+                    role: 'Momentum Bot',
+                    position: [0, 0, -5],
+                    color: 0xff00ff,
+                    winRate: '65%',
+                    totalTrades: 178,
+                    balance: '$15,670'
+                },
+                {
+                    name: 'DELTA-9',
+                    role: 'Grid Trader',
+                    position: [4, 0, -5],
+                    color: 0xffaa00,
+                    winRate: '71%',
+                    totalTrades: 423,
+                    balance: '$9,120'
+                },
+                {
+                    name: 'EPSILON-2',
+                    role: 'DCA Bot',
+                    position: [8, 0, -5],
+                    color: 0x00ffaa,
+                    winRate: '58%',
+                    totalTrades: 89,
+                    balance: '$3,250'
+                },
+                {
+                    name: 'ZETA-8',
+                    role: 'Arbitrage Bot',
+                    position: [-2, 0, 3],
+                    color: 0xff0088,
+                    winRate: '85%',
+                    totalTrades: 1234,
+                    balance: '$1,422'
+                }
+            ];
+
+            botData.forEach((data, index) => {
+                const botGroup = new THREE.Group();
+
+                // Bot body (cube with glow)
+                const bodyGeometry = new THREE.BoxGeometry(1.5, 2.5, 1.5);
+                const bodyMaterial = new THREE.MeshStandardMaterial({
+                    color: data.color,
+                    emissive: data.color,
+                    emissiveIntensity: 0.5,
+                    metalness: 0.8,
+                    roughness: 0.2
+                });
+                const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+                body.castShadow = true;
+                body.receiveShadow = true;
+                botGroup.add(body);
+
+                // Head (sphere)
+                const headGeometry = new THREE.SphereGeometry(0.6, 32, 32);
+                const headMaterial = new THREE.MeshStandardMaterial({
+                    color: data.color,
+                    emissive: data.color,
+                    emissiveIntensity: 0.8,
+                    metalness: 0.9
+                });
+                const head = new THREE.Mesh(headGeometry, headMaterial);
+                head.position.y = 1.8;
+                head.castShadow = true;
+                botGroup.add(head);
+
+                // Eyes (point lights for effect)
+                const eyeLight1 = new THREE.PointLight(data.color, 1);
+                eyeLight1.position.set(-0.2, 1.8, 0.4);
+                botGroup.add(eyeLight1);
+
+                const eyeLight2 = new THREE.PointLight(data.color, 1);
+                eyeLight2.position.set(0.2, 1.8, 0.4);
+                botGroup.add(eyeLight2);
+
+                // Desk
+                const deskGeometry = new THREE.BoxGeometry(3, 0.2, 2);
+                const deskMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x2a2a4e,
+                    roughness: 0.6
+                });
+                const desk = new THREE.Mesh(deskGeometry, deskMaterial);
+                desk.position.y = -1.3;
+                desk.castShadow = true;
+                desk.receiveShadow = true;
+                botGroup.add(desk);
+
+                // Monitor on desk
+                const monitorGeometry = new THREE.BoxGeometry(2, 1.5, 0.1);
+                const monitorMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x1a1a3e,
+                    emissive: 0x00ff88,
+                    emissiveIntensity: 0.3
+                });
+                const monitor = new THREE.Mesh(monitorGeometry, monitorMaterial);
+                monitor.position.set(0, 0.2, -0.8);
+                monitor.castShadow = true;
+                botGroup.add(monitor);
+
+                // Position the bot group
+                botGroup.position.set(data.position[0], data.position[1], data.position[2]);
+
+                scene.add(botGroup);
+
+                bots.push({
+                    group: botGroup,
+                    data: data,
+                    index: index
+                });
+            });
+        }
+
+        // ============== WINDOWS & DATA ==============
+        const windowsData = [
+            {
+                title: '📊 DEX Screener Live',
+                type: 'dex',
+                icon: '🔍'
+            },
+            {
+                title: '💰 Phantom Wallet',
+                type: 'wallet',
+                icon: '👻'
+            },
+            {
+                title: '💹 GMGN Alerts',
+                type: 'gmgn',
+                icon: '⚡'
+            },
+            {
+                title: '📈 Coinbase Pro',
+                type: 'coinbase',
+                icon: '🪙'
+            }
+        ];
+
+        function createWindows() {
+            const container = document.getElementById('windowsContainer');
+
+            windowsData.forEach(winData => {
+                const windowDiv = document.createElement('div');
+                windowDiv.className = 'window';
+                windowDiv.id = `window-${winData.type}`;
+
+                let content = '';
+                switch(winData.type) {
+                    case 'dex':
+                        content = generateDexContent();
+                        break;
+                    case 'wallet':
+                        content = generateWalletContent();
+                        break;
+                    case 'gmgn':
+                        content = generateGmgnContent();
+                        break;
+                    case 'coinbase':
+                        content = generateCoinbaseContent();
+                        break;
+                }
+
+                windowDiv.innerHTML = `
+                    <div class="window-header">
+                        <span class="window-title">${winData.icon} ${winData.title}</span>
+                        <div class="window-controls">
+                            <button class="window-btn" onclick="minimizeWindow('${winData.type}')">−</button>
+                            <button class="window-btn" onclick="closeWindow('${winData.type}')">✕</button>
+                        </div>
+                    </div>
+                    <div class="window-content">
+                        ${content}
+                    </div>
+                `;
+
+                container.appendChild(windowDiv);
+            });
+        }
+
+        function generateDexContent() {
+            const pairs = [
+                { symbol: 'SOL/USDC', price: '$142.50', change: '+5.23%', vol: '1.2B' },
+                { symbol: 'ORCA/SOL', price: '$2.145', change: '+12.45%', vol: '45M' },
+                { symbol: 'BONK/SOL', price: '$0.00023', change: '-2.15%', vol: '230M' },
+                { symbol: 'COPE/SOL', price: '$0.0034', change: '+8.92%', vol: '12M' },
+                { symbol: 'SAMO/SOL', price: '$0.012', change: '+15.67%', vol: '55M' }
+            ];
+
+            return pairs.map(p => `
+                <div class="feed-item">
+                    <div class="feed-header">
+                        <span class="feed-symbol">${p.symbol}</span>
+                        <span class="feed-price">${p.price}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 0.75rem;">
+                        <span class="feed-change ${p.change.startsWith('+') ? 'positive' : 'negative'}">${p.change}</span>
+                        <span style="color: #00ccff;">Vol: ${p.vol}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function generateWalletContent() {
+            return `
+                <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+                    <div class="balance-item">
+                        <div class="stat-label">SOL Balance</div>
+                        <div class="stat-value">125.5 SOL</div>
+                    </div>
+                    <div class="balance-item">
+                        <div class="stat-label">USDC Balance</div>
+                        <div class="stat-value">$8,450</div>
+                    </div>
+                </div>
+                <div style="background: rgba(0, 255, 136, 0.05); padding: 10px; border-radius: 5px; margin-bottom: 10px;">
+                    <div class="stat-label">Wallet Address</div>
+                    <div style="font-size: 0.7rem; color: #00ff88; word-break: break-all; margin-top: 5px;">
+                        7C2x...kQ9x
+                    </div>
+                </div>
+                <div style="text-align: center;">
+                    <button style="background: #00ff88; color: #000; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold;">Send</button>
+                    <button style="background: #00ccff; color: #000; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; margin-left: 5px; font-weight: bold;">Receive</button>
+                </div>
+            `;
+        }
+
+        function generateGmgnContent() {
+            const alerts = [
+                { token: 'NEW_TOKEN_XYZ', mcap: '$1.2M', change: '+234%', time: '2m ago' },
+                { token: 'PUMP_ABC', mcap: '$5.6M', change: '+1234%', time: '15m ago' },
+                { token: 'RISING_DEF', mcap: '$890K', change: '+456%', time: '45m ago' }
+            ];
+
+            return alerts.map(a => `
+                <div class="feed-item" style="border-left-color: #ffaa00;">
+                    <div class="feed-header">
+                        <span class="feed-symbol">${a.token}</span>
+                        <span class="feed-change positive">+${a.change}</span>
+                    </div>
+                    <div style="font-size: 0.75rem; display: flex; justify-content: space-between;">
+                        <span style="color: #00ccff;">MCap: ${a.mcap}</span>
+                        <span style="color: #888;">${a.time}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function generateCoinbaseContent() {
+            return `
+                <div class="feed-item">
+                    <div class="feed-header">
+                        <span class="feed-symbol">BTC/USD</span>
+                        <span class="feed-price">$45,230</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 0.75rem;">
+                        <span class="feed-change positive">+2.45%</span>
+                        <span style="color: #00ccff;">24h Vol: $28.2B</span>
+                    </div>
+                </div>
+                <div class="feed-item">
+                    <div class="feed-header">
+                        <span class="feed-symbol">ETH/USD</span>
+                        <span class="feed-price">$2,340</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 0.75rem;">
+                        <span class="feed-change positive">+1.82%</span>
+                        <span style="color: #00ccff;">24h Vol: $14.1B</span>
+                    </div>
+                </div>
+                <div class="feed-item">
+                    <div class="feed-header">
+                        <span class="feed-symbol">SOL/USD</span>
+                        <span class="feed-price">$142.50</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 0.75rem;">
+                        <span class="feed-change positive">+5.23%</span>
+                        <span style="color: #00ccff;">24h Vol: $2.3B</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        function minimizeWindow(type) {
+            const win = document.getElementById(`window-${type}`);
+            win.classList.toggle('minimized');
+        }
+
+        function closeWindow(type) {
+            const win = document.getElementById(`window-${type}`);
+            win.style.display = 'none';
+        }
+
+        // ============== BOT PROFILES ==============
+        function createBotProfileWindows() {
+            const container = document.getElementById('windowsContainer');
+
+            bots.forEach(bot => {
+                const windowDiv = document.createElement('div');
+                windowDiv.className = 'window';
+                windowDiv.id = `bot-window-${bot.index}`;
+
+                windowDiv.innerHTML = `
+                    <div class="window-header">
+                        <span class="window-title">🤖 ${bot.data.name}</span>
+                        <div class="window-controls">
+                            <button class="window-btn" onclick="minimizeWindow('bot-${bot.index}')">−</button>
+                            <button class="window-btn" onclick="closeBotWindow(${bot.index})">✕</button>
+                        </div>
+                    </div>
+                    <div class="window-content">
+                        <div class="bot-profile" onclick="openBotModal(${bot.index})" style="cursor: pointer; margin: 0;">
+                            <div class="bot-name">${bot.data.name}</div>
+                            <div class="bot-role">🎯 ${bot.data.role}</div>
+                            <div class="bot-stat">
+                                <div class="bot-stat-item">
+                                    <div class="stat-label">Win Rate</div>
+                                    <div class="stat-value">${bot.data.winRate}</div>
+                                </div>
+                                <div class="bot-stat-item">
+                                    <div class="stat-label">Total Trades</div>
+                                    <div class="stat-value">${bot.data.totalTrades}</div>
+                                </div>
+                            </div>
+                            <div style="margin-top: 10px; display: flex; justify-content: space-between;">
+                                <div>
+                                    <div class="stat-label">Balance</div>
+                                    <div class="stat-value">${bot.data.balance}</div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <span class="status-indicator"></span>
+                                    <div class="stat-label">Active</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                container.appendChild(windowDiv);
+            });
+        }
+
+        function closeBotWindow(index) {
+            const win = document.getElementById(`bot-window-${index}`);
+            win.style.display = 'none';
+        }
+
+        function openBotModal(index) {
+            const bot = bots[index];
+            const modal = document.getElementById('botModal');
+            document.getElementById('modalBotName').textContent = `${bot.data.name} - ${bot.data.role}`;
+
+            const body = `
+                <div class="bot-detail-section">
+                    <div class="section-title">📊 Performance Metrics</div>
+                    <div class="detail-row">
+                        <span class="detail-label">Win Rate:</span>
+                        <span class="detail-value">${bot.data.winRate}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Total Trades:</span>
+                        <span class="detail-value">${bot.data.totalTrades}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Current Balance:</span>
+                        <span class="detail-value">${bot.data.balance}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Monthly ROI:</span>
+                        <span class="detail-value">+18.5%</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Max Drawdown:</span>
+                        <span class="detail-value">-8.2%</span>
+                    </div>
+                </div>
+
+                <div class="bot-detail-section">
+                    <div class="section-title">⚙️ Bot Configuration</div>
+                    <div class="detail-row">
+                        <span class="detail-label">Strategy:</span>
+                        <span class="detail-value">${bot.data.role}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Risk Per Trade:</span>
+                        <span class="detail-value">2%</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Max Position Size:</span>
+                        <span class="detail-value">$2,500</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Update Frequency:</span>
+                        <span class="detail-value">Every 60s</span>
+                    </div>
+                </div>
+
+                <div class="bot-detail-section">
+                    <div class="section-title">📈 Recent Trades</div>
+                    <div class="detail-row">
+                        <span class="detail-label">Last Trade:</span>
+                        <span class="detail-value">+$125.50</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Best Trade:</span>
+                        <span class="detail-value">+$2,340.25</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Worst Trade:</span>
+                        <span class="detail-value">-$854.75</span>
+                    </div>
+                </div>
+
+                <div class="bot-detail-section">
+                    <div class="section-title">🔧 Status</div>
+                    <div style="text-align: center; padding: 15px;">
+                        <span class="status-indicator"></span> RUNNING
+                        <div style="margin-top: 10px; font-size: 0.8rem; color: #00ccff;">
+                            Last updated: 2 seconds ago
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('modalBotBody').innerHTML = body;
+            modal.classList.add('active');
+        }
+
+        function closeBotModal() {
+            document.getElementById('botModal').classList.remove('active');
+        }
+
+        // ============== WALLET CONNECTION ==============
+        function connectWallet(type) {
+            alert(`Connecting to ${type.charAt(0).toUpperCase() + type.slice(1)}...`);
+        }
+
+        // ============== INITIALIZATION ==============
+        function startAnimation() {
+            initThreeJS();
+            createWindows();
+            createBotProfileWindows();
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('botModal')?.addEventListener('click', (e) => {
+            if (e.target.id === 'botModal') {
+                closeBotModal();
+            }
+        });
+    </script>
+</body>
+</html>
